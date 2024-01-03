@@ -9,7 +9,7 @@
 
 /*MODULES*/
 
-const int ADC=A0, GSR=3,EMG=1,HEAT_RATE=16,SCK=14,MISO=12,MOSI=13,CS=15;
+const int ADC=A0, GSR=3,EMG=1,HEAT_RATE=16,HSCK=14,HMISO=12,HMOSI=13,HCS=15;;
 int sensorValue=0;
 int gsr_average=0;
 
@@ -192,8 +192,9 @@ void init_gpio_Trans(){
   }
   
 void startSD(){
-  SPI.begin(SCK, MISO, MOSI, CS);
-  if (!SD.begin(CS)) {
+  SPI.pins(HSCK,HMISO,HMOSI,HCS);
+  SPI.begin();
+  if (!SD.begin(HCS)) {
     Serial.println("SD card initialization failed. Check your connections.");
     return;
   }
