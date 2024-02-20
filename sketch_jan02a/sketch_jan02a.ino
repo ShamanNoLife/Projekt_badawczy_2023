@@ -9,7 +9,7 @@
 
 /*MODULES*/
 
-const int ADC=A0, GSR=3,EMG=1,HEAT_RATE=16,HSCK=14,HMISO=12,HMOSI=13,HCS=15;;
+const int ADC=A0, GSR=3,EMG=1,HEAT_RATE=16  ;
 int sensorValue=0;
 int gsr_average=0;
 
@@ -26,14 +26,13 @@ bool data_effect=true;
 unsigned int heart_rate=0;
 const int max_heartpluse_duty = 2000;
 
+const int chipSelect = 15;
+
 /*ESP*/
 
 ESP8266WiFiMulti wifiMulti;  
 
 ESP8266WebServer server(80);  
-
-const char *ssid = "karol"; 
-const char *password = "karol123";
 
 const char* mdnsName = "esp8266"; 
 
@@ -41,46 +40,45 @@ File fsUploadFile;
 
 WiFiUDP UDP;
 
-long get_data_from_gsr(int pin);
-int get_data_from_emg(int pin);
-void sum();
-void init_gpio_Trans();
-void startSD();
-void interrupt();
-void arrayInit();
-void startWiFi();
-void startSPIFFS();
-void startMDNS();
-void startServer();
-void startUDP();
-void handleNotFound();
-bool handleFileRead(String path);
-void handleFileUpload();
-String formatBytes(size_t bytes);
-String getContentType(String filename);
-void clearCSV();
-void appendToCSV(int x, int y, int z);
+String getContentType(String filename);  
+bool handleFileRead(String path);        
+void ICACHE_RAM_ATTR interrupt();
 void readAndPrintCSV();
+
 
 void setup() {
   Serial.begin(9600);
   Serial.swap();
   delay(10);
-  init_gpio_Trans();
-  startSD();
+  
+  pinMode(GSR, OUTPUT);
+  pinMode(EMG, OUTPUT);
+
+  if (!SD.begin(chipSelect)) {
+    Serial.println("SD card initialization failed. Check your connections.");
+    return;
+  }
+  Serial.println("SD card initialized successfully.");
+  SD.remove("/data.csv");
+  
   startWiFi();                 
   startSPIFFS();
   clearCSV();               
   startMDNS();                 
   startServer();
   startUDP();
+
   attachInterrupt(HEAT_RATE, interrupt, RISING);
 }
 
 int i=0,j=0;
 
 void loop(void) {
-/* DEBUG
+  digitalWrite(EMG, LOW);
+  digitalWrite(GSR, LOW);
+  delay(1000);
+  digitalWrite(EMG, HIGH);
+  digitalWrite(GSR, HIGH);
   if(j<=100){ 
      heart_rate=i*10;
      gsr=i+1*100;
@@ -92,7 +90,6 @@ void loop(void) {
   else{
     readAndPrintCSV();
    }
-   */
   MDNS.update();
   server.handleClient();
 }
@@ -182,25 +179,10 @@ void arrayInit(){
   temp[20]=millis();
 }
 
-/*ESP AND SD MODULE*/
+/*ESP*/
 
-void init_gpio_Trans(){
-  pinMode(GSR, OUTPUT);
-  pinMode(EMG, OUTPUT);
-  digitalWrite(GSR, LOW);
-  digitalWrite(EMG, LOW);
-  }
-  
-void startSD(){
-  SPI.pins(HSCK,HMISO,HMOSI,HCS);
-  SPI.begin();
-  if (!SD.begin(HCS)) {
-    Serial.println("SD card initialization failed. Check your connections.");
-    return;
-  }
-  Serial.println("SD card initialized successfully.");
-  SD.remove("/data.csv");
-  }
+const char *ssid = "karol"; 
+const char *password = "karol123";
 
 void startWiFi() { 
   /*
@@ -253,6 +235,7 @@ void startMDNS() {
 void startServer() { 
   server.on("/edit.html",  HTTP_POST, []() {  
     server.send(200, "text/plain", "");
+    server.streamFile()
   }, handleFileUpload);                       
 
   server.onNotFound(handleNotFound);          

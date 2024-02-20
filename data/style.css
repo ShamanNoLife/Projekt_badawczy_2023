@@ -23,14 +23,19 @@ button {
 #measurementButton:hover {
     background-color: #45a049;
 }
-
-#saveToCSVButton {
-    background-color: #008CBA;
+#saveButton {
+    background-color: #e10c10;
     color: white;
 }
 
-#saveToCSVButton:hover {
-    background-color: #0077A8;
+#saveButtonButton:hover {
+    background-color: #e70a2b;
+}
+
+.container {
+    max-width: 1200px; 
+    margin: 0 auto;    
+    padding: 20px;     
 }
 
 .graph-container {
@@ -45,14 +50,16 @@ button {
     border: 1px solid #ccc;
     border-radius: 8px;
     background-color: #f8f8f8;
-    text-align: center; /* Center text inside the graph */
-    height: 400px; /* Adjust the height as needed */
+    text-align: center; 
+    max-width: 100%;
+    width: 100%;
+    height: auto; 
 }
 
 canvas {
     border: 1px solid #ccc;
-    display: block; /* Make canvas a block element to center it */
-    margin: 0 auto; /* Center the canvas horizontally */
+    display: block; 
+    margin: 0 auto; 
 }
 
 .hidden {

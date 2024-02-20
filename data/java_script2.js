@@ -12,6 +12,8 @@ var animationFrameId;
 var animationProgress = 0;
 var animationDuration = 1000;
 
+
+
 function toggleMeasurement() {
     var button = document.getElementById("measurementButton");
     if (!isMeasuring) {
@@ -27,11 +29,11 @@ function toggleMeasurement() {
             await loadCSVData();
 
             setTimeout(function () {
-                alert("Pomiar rozpoczęty!");
+                alert("Animacja rozpoczęta!");
                 startAnimation();
-            }, 1 * 60 * 1);
+            }, 1 * 1 * 1000);
 
-        }, 1 * 60 * 1);
+        }, 1 * 60 * 1000);
     } else {
         button.innerHTML = "Rozpocznij pomiar";
         alert("Pomiar zatrzymany!");
@@ -51,6 +53,9 @@ async function startAnimation() {
     function animate() {
         drawCharts();
         animationProgress += 1;
+        if (animationProgress >= animationDuration) {
+            animationProgress = 0;
+        }
         animationFrameId = requestAnimationFrame(animate);
     }
 
@@ -59,14 +64,12 @@ async function startAnimation() {
 
 
 function adjustCanvasSize(canvas, context, data) {
-    const maxWidth = window.innerWidth - 40; 
-    const maxHeight = window.innerHeight - 40; 
+    const maxHeight = window.innerHeight - 40;
 
-    const canvasSize = calculateCanvasSize(data, 300); 
-    const adjustedWidth = Math.min(canvasSize.width, maxWidth);
+    const canvasSize = calculateCanvasSize(data, 300);
     const adjustedHeight = Math.min(canvasSize.height, maxHeight);
 
-    setCanvasSize(canvas, adjustedWidth, adjustedHeight);
+    setCanvasSize(canvas, adjustedHeight);
 
     drawCharts();
 }
@@ -91,11 +94,10 @@ function calculateCanvasSize(data, minWidth) {
     };
 }
 
-function setCanvasSize(canvas, width, height) {
+function setCanvasSize(canvas, height) {
+    const width = 1200;
     canvas.width = width;
     canvas.height = height;
-    canvas.getContext("2d").canvas.width = width;
-    canvas.getContext("2d").canvas.height = height;S
 }
 
 async function loadCSVData() {
@@ -104,18 +106,18 @@ async function loadCSVData() {
         const csvData = await response.text();
         processData(csvData);
 
-        var heartRateCanvasSize = calculateCanvasSize(heartRateData, 300);
+        var heartRateCanvasSize = calculateCanvasSize(heartRateData, 100);
         setCanvasSize(heartRateCanvas, heartRateCanvasSize.width, heartRateCanvasSize.height);
 
-        var gsrCanvasSize = calculateCanvasSize(gsrData, 300);
+        var gsrCanvasSize = calculateCanvasSize(gsrData, 100);
         setCanvasSize(gsrCanvas, gsrCanvasSize.width, gsrCanvasSize.height);
 
-        var emgCanvasSize = calculateCanvasSize(emgData, 300);
+        var emgCanvasSize = calculateCanvasSize(emgData, 100);
         setCanvasSize(emgCanvas, emgCanvasSize.width, emgCanvasSize.height);
 
         drawCharts();
     } catch (error) {
-        console.error('Error fetching CSV data:', error);
+
     }
 }
 
@@ -128,11 +130,10 @@ function processData(csvData) {
 
     rows.forEach(function (row) {
         var columns = row.split(',');
-        gsrData.push(parseInt(columns[0]));
+        heartRateData.push(parseInt(columns[0]));
         emgData.push(parseInt(columns[1]));
-        heartRateData.push(parseInt(columns[2]));
+        gsrData.push(parseInt(columns[2]));
     });
-
     console.log("Parsed CSV Data:");
     console.log("Heart Rate Data:", heartRateData);
     console.log("GSR Data:", gsrData);
@@ -140,7 +141,15 @@ function processData(csvData) {
 }
 
 function drawCharts() {
-    console.log("Drawing Charts...");
+    var yMaxHeartRate = Math.max(...heartRateData);
+    var yMinHeartRate = Math.min(...heartRateData);
+    var yMaxGSR = Math.max(...gsrData);
+    var yMinGSR = Math.min(...gsrData);
+    var yMaxEMG = Math.max(...emgData);
+    var yMinEMG = Math.min(...emgData);
+
+    heartRateContext.clearRect(0, 0, heartRateCanvas.width, heartRateCanvas.height);
+    drawHeartRateChart();
 
     gsrContext.clearRect(0, 0, gsrCanvas.width, gsrCanvas.height);
     drawGSRChart();
@@ -148,12 +157,32 @@ function drawCharts() {
     emgContext.clearRect(0, 0, emgCanvas.width, emgCanvas.height);
     drawEMGChart();
 
-    heartRateContext.clearRect(0, 0, heartRateCanvas.width, heartRateCanvas.height);
-    drawHeartRateChart();
+    drawAxisLabels(heartRateContext, heartRateCanvas, yMaxHeartRate, yMinHeartRate, false);
+    drawAxisLabels(gsrContext, gsrCanvas, yMaxGSR, yMinGSR, false);
+    drawAxisLabels(emgContext, emgCanvas, yMaxEMG, yMinEMG, false);
+}
+
+function drawAxisLabels(context, canvas, yMax, yMin, drawXLabels) {
+    var yScale = (canvas.height - 40) / (yMax - yMin);
+    var yAxisLabelInterval = (yMax - yMin) / 5; 
+
+    context.font = "16px Arial";
+
+    for (var i = 0; i <= 5; i++) {
+        var label = Math.round(yMin + i * yAxisLabelInterval);
+        var yPos = canvas.height - 20 - i * ((canvas.height - 40) / 5);
+        context.fillText(label.toString(), 20, yPos);
+    }
+
+    if (drawXLabels) {
+        for (var i = 0; i <= 5; i++) {
+            var xPos = 20 + i * ((canvas.width - 40) / 5);
+            context.fillText(i.toString(), xPos, canvas.height - 20);
+        }
+    }
 }
 
 function drawHeartRateChart() {
-    console.log("Animating Heart Rate");
     heartRateContext.clearRect(0, 0, heartRateCanvas.width, heartRateCanvas.height);
 
     var yMin = Math.min(...heartRateData);
@@ -175,9 +204,11 @@ function drawHeartRateChart() {
     heartRateContext.lineWidth = 2;
 
     var pointsToDraw = Math.floor((animationProgress / animationDuration) * heartRateData.length);
-    pointsToDraw = Math.min(pointsToDraw, heartRateData.length);
+    if (pointsToDraw > heartRateData.length) {
+        pointsToDraw = pointsToDraw % heartRateData.length;
+    }
 
-    heartRateData.slice(0, pointsToDraw).forEach(function (point, index) {
+    heartRateData.slice(pointsToDraw).forEach(function (point, index) {
         var xPos = 20 + index * ((heartRateCanvas.width - 40) / (heartRateData.length - 1));
         var yPos = heartRateCanvas.height - 20 - (point - yMin) * yScale;
 
@@ -193,32 +224,7 @@ function drawHeartRateChart() {
     heartRateContext.stroke();
 }
 
-
-function drawEMGChart() {
-    console.log("Animating EMG");
-    emgContext.clearRect(0, 0, emgCanvas.width, emgCanvas.height);
-
-    var yMin = 0;
-    var yMax = 100;
-    var yScale = (emgCanvas.height - 40) / (yMax - yMin);
-
-    emgContext.fillStyle = "#2ecc71"; // Green color
-
-    var barWidth = 50;
-    var xPos = (emgCanvas.width - barWidth) / 2;
-
-    var currentIndex = Math.floor((animationProgress / animationDuration) * emgData.length);
-    currentIndex = Math.min(currentIndex, emgData.length - 1);
-
-    var originalValue = emgData[currentIndex];
-
-    var barHeight = originalValue * yScale;
-    var yPos = emgCanvas.height - 20 - barHeight;
-    emgContext.fillRect(xPos, yPos, barWidth, barHeight);
-}
-
 function drawGSRChart() {
-    console.log("Animating GSR");
     gsrContext.clearRect(0, 0, gsrCanvas.width, gsrCanvas.height);
 
     var yMin = Math.min(...gsrData);
@@ -240,9 +246,11 @@ function drawGSRChart() {
     gsrContext.lineWidth = 2;
 
     var pointsToDraw = Math.floor((animationProgress / animationDuration) * gsrData.length);
-    pointsToDraw = Math.min(pointsToDraw, gsrData.length);
+    if (pointsToDraw > gsrData.length) {
+        pointsToDraw = pointsToDraw % gsrData.length;
+    }
 
-    gsrData.slice(0, pointsToDraw).forEach(function (point, index) {
+    gsrData.slice(pointsToDraw).forEach(function (point, index) {
         var xPos = 20 + index * ((gsrCanvas.width - 40) / (gsrData.length - 1));
         var yPos = gsrCanvas.height - 20 - (point - yMin) * yScale;
 
@@ -256,6 +264,71 @@ function drawGSRChart() {
     });
 
     gsrContext.stroke();
+}
+
+function drawEMGChart() {
+    emgContext.clearRect(0, 0, emgCanvas.width, emgCanvas.height);
+
+    var yMin = Math.min(...emgData);
+    var yMax = Math.max(...emgData);
+    var yScale = (emgCanvas.height - 40) / (yMax - yMin);
+
+    var xOffset = (emgCanvas.width - 40) / (emgData.length - 1); 
+
+    emgContext.beginPath();
+    emgContext.moveTo(20, emgCanvas.height - 20);
+    emgContext.lineTo(20, 20);
+    emgContext.stroke();
+
+    emgContext.beginPath();
+    emgContext.moveTo(20, emgCanvas.height - 20);
+    emgContext.lineTo(emgCanvas.width - 20, emgCanvas.height - 20);
+    emgContext.stroke();
+
+    emgContext.beginPath();
+    emgContext.strokeStyle = "#00ff00"; // Green color 
+    emgContext.lineWidth = 2;
+
+    var pointsToDraw = Math.floor((animationProgress / animationDuration) * emgData.length);
+    if (pointsToDraw > emgData.length) {
+        pointsToDraw = pointsToDraw % emgData.length;
+    }
+
+    emgData.slice(pointsToDraw).forEach(function (point, index) {
+        var xPos = 20 + index * xOffset;
+        var yPos = emgCanvas.height - 20 - (point - yMin) * yScale;
+
+        if (index === 0) {
+            emgContext.moveTo(xPos, yPos);
+        } else {
+            emgContext.lineTo(xPos, yPos);
+        }
+
+        emgContext.arc(xPos, yPos, 3, 0, 2 * Math.PI);
+    });
+
+    emgContext.stroke();
+}
+
+
+function saveMeasurement() {
+    var csvContent = "Heart Rate,EMG,GSR\n";
+
+    for (var i = 0; i < heartRateData.length; i++) {
+        csvContent += heartRateData[i] + "," + emgData[i] + "," + gsrData[i] + "\n";
+    }
+
+    var blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
+    var link = document.createElement("a");
+    var fileName = "sensor_data.csv";
+
+    link.href = window.URL.createObjectURL(blob);
+    link.download = fileName;
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
 }
 
 window.onload = function () {
